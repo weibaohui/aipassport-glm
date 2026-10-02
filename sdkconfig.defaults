@@ -25,7 +25,13 @@ CONFIG_LV_DEF_REFR_PERIOD=20
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
-# 本应用 UI 简单(两页 label/bar),24KB 足够;若出现绘制卡死/看门狗,调大此值。
+# 本应用 UI 简单(用量条 + 列表),24KB 足够;若出现绘制卡死/看门狗,调大此值。
+#
+# 注意这里必须用 KB 这个键:本仓解析到的是 lvgl/lvgl 9.5.0,其 Kconfig 只有
+# LV_MEM_SIZE_KILOBYTES。写成新键 CONFIG_LV_MEM_SIZE(字节)不会报错,而是
+# 静静不生效,于是回落成 Kconfig 默认的 64KB,白占 40KB RAM。
+# 收音机仓因为多引了 esp_audio_codec,解析到的是另一份打包(有字节版 Kconfig),
+# 那边必须反过来用字节键。两边的键名不一致,不要照抄。
 CONFIG_LV_MEM_SIZE_KILOBYTES=24
 # 中文界面:UTF-8 编码 + 缺字占位(缺字必须可见,不得静默空白)。
 CONFIG_LV_TXT_ENC_UTF8=y

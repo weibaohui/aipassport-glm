@@ -1,0 +1,11 @@
+# 主机测试的编译映射,给 tests/host_tests.txt 用。
+#
+# 门禁按约定发现测试:tests/test_<stem>.c 默认会带上 main/<stem>.c。
+# 只有「被测文件名和测试名对不上」或「还要额外源码」时才需要在这里写一行:
+#
+#     <stem>  <额外源文件,相对仓库根,空格分隔>
+#
+# stem 就是测试文件名去掉 test_ 前缀和 .c 后缀。
+
+# 被测文件叫 glm_parsers.c,和测试名 glm_usage_parse 对不上,还要 cJSON。
+glm_usage_parse  main/glm_parsers.c tests/thirdparty/cJSON/cJSON.c
