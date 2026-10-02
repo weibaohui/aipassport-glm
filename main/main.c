@@ -81,6 +81,8 @@ void app_main(void)
     appfw_netlist_t list;
     if (!appfw_store_netlist_load(&list)) appfw_netlist_reset(&list);
     int net_err = appfw_net_init(&list, false); // 配网统一从菜单进,不再自动开门户
+    // 热点名想定制?一行覆盖(默认 "GLM-Meter-"+MAC 尾缀,如 GLM-Meter-D22C):
+    // appfw_net_set_ap_ssid("我的热点名");
 
     int glm_err = glm_api_start(); // 内部构造 appfw_client 配置并启动
 
