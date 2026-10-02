@@ -15,6 +15,7 @@
 #include "bsp_display.h"
 #include "bsp_i2c.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -66,6 +67,8 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "GLM 用量宝(appfw)启动");
 
+             (unsigned)esp_get_free_heap_size(),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     bsp_i2c_init();
     (void)bsp_battery_init(); // 失败不阻塞:电量显示降级为 --
 
@@ -75,11 +78,10 @@ void app_main(void)
     }
     bsp_display_backlight(100);
 
+             (unsigned)esp_get_free_heap_size(),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     if (appfw_files_init() != ESP_OK) {
         ESP_LOGE(TAG, "文件分区挂载失败(文件管理不可用)");
-    }
-    if (appfw_portal_restore_config("/files/config.json")) {
-        ESP_LOGI(TAG, "配置已从文件分区恢复");
     }
     if (appfw_store_init() != ESP_OK) {
         ESP_LOGE(TAG, "NVS 初始化失败(配置将无法保存)");
@@ -87,10 +89,14 @@ void app_main(void)
 
     appfw_netlist_t list;
     if (!appfw_store_netlist_load(&list)) appfw_netlist_reset(&list);
+             (unsigned)esp_get_free_heap_size(),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     int net_err = appfw_net_init(&list, false); // 配网统一从菜单进,不再自动开门户
     // 热点名想定制?一行覆盖(框架默认 "AI-WiFi-"+MAC 尾缀,如 AI-WiFi-D22C):
     // appfw_net_set_ap_ssid("我的热点名");
 
+             (unsigned)esp_get_free_heap_size(),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     int glm_err = glm_api_start(); // 内部构造 appfw_client 配置并启动
 
     // UI:注入业务页面与信息行。
@@ -103,6 +109,7 @@ void app_main(void)
         .app_config_html = glm_pages_app_config_html,
         
         .app_config_fill = glm_pages_app_config_fill,
+        .config_rows = glm_pages_config_rows,
     };
 
     // 按键输入任务(框架约定:回调转 appfw_ui_on_key)。

@@ -236,6 +236,26 @@ int glm_pages_info_rows(char (*keys)[16], char (*vals)[72], int max)
     return n;
 }
 
+// 设备信息「配置」区:应用定义的配置项状态(框架渲染)。
+int glm_pages_config_rows(char (*keys)[24], char (*vals)[72], int max)
+{
+    int n = 0;
+    if (n < max) {
+        char key[GLM_KEY_MAX];
+        snprintf(keys[n], 24, "API Key");
+        snprintf(vals[n], 72, glm_cfg_get_key(key, sizeof(key)) ? "已配置" : "未设置");
+        n++;
+    }
+    if (n < max) {
+        char org[GLM_ORG_MAX] = { 0 }, proj[GLM_PROJ_MAX] = { 0 };
+        bool team = glm_cfg_get_org(org, sizeof(org)) && glm_cfg_get_project(proj, sizeof(proj));
+        snprintf(keys[n], 24, "团队上下文");
+        snprintf(vals[n], 72, team ? "已配置" : "未配置");
+        n++;
+    }
+    return n;
+}
+
 // ---- 门户:应用配置卡片(H5)与保存/回显 ----
 void glm_pages_app_config_fill(void *obj)
 {
