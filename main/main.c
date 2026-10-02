@@ -111,7 +111,7 @@ void app_main(void)
     if (bsp_lvgl_lock(1000)) {
         appfw_ui_init(&ucfg);
         bsp_lvgl_unlock();
-        s_keys_ready = s_keys_ready; // 顺序:UI 就绪后允许按键
+        s_keys_ready = true; // 顺序:UI 就绪后允许按键
     } else {
         ESP_LOGE(TAG, "LVGL 锁获取失败,界面未创建");
     }

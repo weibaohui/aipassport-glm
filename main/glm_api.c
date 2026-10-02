@@ -5,6 +5,9 @@
 #include <string.h>
 
 #include "appfw_client.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "appfw_net.h"
 #include "appfw_storage.h"
 #include "esp_log.h"
@@ -13,7 +16,7 @@
 static const char *TAG = "glm_api";
 
 #define QUOTA_URL "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
-#define RESETS_URL "https://open.bigmodel.cn/api/biz/customer-package-reset/list?targetType=TEAM"
+#define RESETS_URL "http://192.168.0.77:8129/api/biz/customer-package-reset/list?targetType=TEAM"
 
 // ---- 快照与配置(自旋锁保护) ----
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -104,22 +107,47 @@ static void on_result(appfw_client_err_t ferr, int status, int transport_err,
             ferr = APPFW_CLIENT_PARSE;
         }
     }
-    // 团队模式成功:追加重置次数(独立端点;失败仅置 -1)。
+    // 团队模式成功:追加重置次数(独立端点;服务端偶发拒绝无 cookie 请求,
+    // 实测踩坑 → 最多重试 2 次;失败沿用最近一次成功值,不清零)。
     if (ferr == APPFW_CLIENT_OK) {
         char key[GLM_KEY_MAX], org[GLM_ORG_MAX], proj[GLM_PROJ_MAX];
-        if (team_ctx(org, sizeof(org), proj, sizeof(proj))) {
-            char names[2][64], vals[2][64];
-            snprintf(names[0], 64, "bigmodel-organization");
-            snprintf(vals[0], 64, "%s", org);
-            snprintf(names[1], 64, "bigmodel-project");
-            snprintf(vals[1], 64, "%s", proj);
-            int status = 0;
-            char rbody[2048];
-            size_t rlen = 0;
-            if (appfw_client_fetch_once(RESETS_URL, key, names, vals, 2,
-                                        &status, rbody, sizeof(rbody), &rlen) == ESP_OK &&
-                status == 200) {
-                glm_resets_parse(rbody, rlen, &u.five_hour_resets_left, &u.week_resets_left);
+        if (glm_cfg_get_key(key, sizeof(key)) &&
+            team_ctx(org, sizeof(org), proj, sizeof(proj))) {
+            // 服务端多节点对 org/proj 头的支持不一致(间歇出现"必须传组织ID"),
+            // 实测踩坑:轮换两个域名 + 重试;成功前沿用最近一次成功值。
+            static const char *RESET_URLS[] = {
+                "http://192.168.0.77:8129/api/biz/customer-package-reset/list?targetType=TEAM",
+                "http://192.168.0.77:8129/api/biz/customer-package-reset/list?targetType=TEAM",
+            };
+            static int s_5h = -1, s_week = -1; // 最近一次成功值(仅本任务访问)
+            int h5 = -1, week = -1;
+            bool got = false;
+            for (int attempt = 0; attempt < 4 && !got; attempt++) {
+                char names[2][64], vals[2][64];
+                snprintf(names[0], 64, "bigmodel-organization");
+                snprintf(vals[0], 64, "%s", org);
+                snprintf(names[1], 64, "bigmodel-project");
+                snprintf(vals[1], 64, "%s", proj);
+                int status = 0;
+                char rbody[2048];
+                size_t rlen = 0;
+                if (appfw_client_fetch_once(RESET_URLS[attempt % 2], key, names, vals, 2,
+                                            &status, rbody, sizeof(rbody), &rlen) == ESP_OK &&
+                    status == 200 &&
+                    glm_resets_parse(rbody, rlen, &h5, &week) && h5 >= 0 && week >= 0) {
+                    s_5h = h5; s_week = week;
+                    got = true;
+                } else {
+                    vTaskDelay(pdMS_TO_TICKS(400));
+                }
+            }
+            if (got) {
+                u.five_hour_resets_left = h5;
+                u.week_resets_left = week;
+            } else {
+                ESP_LOGW(TAG, "重置次数拉取失败(双域名 4 次),沿用上次值");
+                u.five_hour_resets_left = s_5h;
+                u.week_resets_left = s_week;
             }
         }
     }
