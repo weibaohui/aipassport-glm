@@ -16,7 +16,7 @@
 static const char *TAG = "glm_api";
 
 #define QUOTA_URL "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
-#define RESETS_URL "http://192.168.0.77:8129/api/biz/customer-package-reset/list?targetType=TEAM"
+#define RESETS_URL "https://open.bigmodel.cn/api/biz/customer-package-reset/list?targetType=TEAM"
 
 // ---- 快照与配置(自旋锁保护) ----
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -116,8 +116,8 @@ static void on_result(appfw_client_err_t ferr, int status, int transport_err,
             // 服务端多节点对 org/proj 头的支持不一致(间歇出现"必须传组织ID"),
             // 实测踩坑:轮换两个域名 + 重试;成功前沿用最近一次成功值。
             static const char *RESET_URLS[] = {
-                "http://192.168.0.77:8129/api/biz/customer-package-reset/list?targetType=TEAM",
-                "http://192.168.0.77:8129/api/biz/customer-package-reset/list?targetType=TEAM",
+                "https://open.bigmodel.cn/api/biz/customer-package-reset/list?targetType=TEAM",
+                "https://open.bigmodel.cn/api/biz/customer-package-reset/list?targetType=TEAM",
             };
             static int s_5h = -1, s_week = -1; // 最近一次成功值(仅本任务访问)
             int h5 = -1, week = -1;
