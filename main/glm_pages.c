@@ -261,64 +261,140 @@ void glm_pages_app_config_fill(void *obj)
     cJSON_AddStringToObject(root, "project", proj);
 }
 
+// 门户 HTML 片段(阶段二「应用配置」卡片:API Key + 团队上下文)。
+// 定义见文件下方;与 POST /api/glm 共用同一套字段写回逻辑。
+static void glm_cfg_apply_parsed(cJSON *root);
+
+// 配置导入钩子(appfw_prov_cfg_t.app_config_apply):框架在
+// POST /api/config/import 与 POST /api/settings 写完自有设置后回调,
+// 用来把导出文件里的应用字段恢复到 NVS。返回 false 会让整个导入失败。
 bool glm_pages_app_config_save(void *obj)
 {
-    cJSON *root = (cJSON *)obj;
-    cJSON *key = cJSON_GetObjectItemCaseSensitive(root, "key");
-    cJSON *org = cJSON_GetObjectItemCaseSensitive(root, "org");
-    cJSON *proj = cJSON_GetObjectItemCaseSensitive(root, "project");
-    // Key 空串=不改动(仅改团队上下文);非空才覆盖。
-    if (cJSON_IsString(key) && key->valuestring && key->valuestring[0])
-        glm_cfg_set_key(key->valuestring);
-    glm_cfg_set_org(cJSON_IsString(org) && org->valuestring ? org->valuestring : "");
-    glm_cfg_set_project(cJSON_IsString(proj) && proj->valuestring ? proj->valuestring : "");
+    glm_cfg_apply_parsed((cJSON *)obj);
     appfw_client_refresh_now();
     return true;
 }
 
+// 门户阶段二的应用配置卡片。本函数返回的片段被框架注入 <!--APP_CONFIG_HTML-->。
+//
+// 注入契约(见 appfw_portal_html.inc 顶部注释与 appfw_portal.h):
+//   - 位置:阶段二容器内,在框架公共助手 <script> 之后,因此 $,esc,jget,jpost
+//     在本片段解析时已可用,不要重复声明。
+//   - 边界:只能通过 REST 端点与框架交互,不得依赖任何框架内部状态或元素。
+//     全局标识符一律加 glm_ 前缀,避免与框架脚本撞名。
+//   - 端点:一律挂在 /api/glm 前缀下,不要占用框架顶级命名空间。
 const char *glm_pages_app_config_html(void)
 {
     return ""
     "<div class=\"card\"><h2>0 · 应用配置(GLM)</h2>\n"
     "<input type=\"text\" id=\"key\" placeholder=\"粘贴智谱 API Key(bigmodel.cn)\">\n"
-    "<input type=\"text\" id=\"org\" placeholder=\"组织 ID org-…(团队套餐,个人留空)\">\n"
-    "<input type=\"text\" id=\"project\" placeholder=\"项目 ID proj-…(团队套餐,个人留空)\">\n"
-    "<button onclick=\"saveKey()\">保存应用配置</button>\n"
-    "<small>保存后设备数秒内开始查询并显示在屏幕上</small></div>\n"
+    "<div style=\"margin:8px 0 2px;color:#9fb0bf;font-size:13px\">团队套餐:粘贴网页登录 Token 自动发现组织/项目(Token 一次性,用完即弃,不落盘)</div>\n"
+    "<input type=\"text\" id=\"jwt\" placeholder=\"bigmodel.cn 网页登录 Token\">\n"
+    "<button class=\"ghost\" onclick=\"glmDiscover()\">发现组织/项目</button>\n"
+    "<div id=\"orgsel\"></div>\n"
+    "<div id=\"projsel\"></div>\n"
+    "<input type=\"text\" id=\"org\" placeholder=\"组织 ID org-…(可手填,个人套餐留空)\">\n"
+    "<input type=\"text\" id=\"project\" placeholder=\"项目 ID proj-…(可手填,个人套餐留空)\">\n"
+    "<button onclick=\"glmSave()\">保存应用配置</button>\n"
+    "<small>保存后设备数秒内开始查询并显示在屏幕上</small>\n"
+    "<div id=\"glmmsg\"></div></div>\n"
     "<script>\n"
-    "async function saveKey(){\n"
-    "  const r=await jpost('/api/glm',{key:$('key').value.trim(),org:$('org').value.trim(),project:$('project').value.trim()});\n"
-    "  if(r.ok)alert('已保存,设备数秒内开始查询');else alert('保存失败');\n"
+    "let glmOrgs=[];\n"
+    "async function glmDiscover(){\n"
+    "  const j=$('jwt').value.trim();\n"
+    "  if(!j){glmMsg('请先粘贴登录 Token',1);return}\n"
+    "  $('orgsel').innerHTML='<small>获取中…</small>';$('projsel').innerHTML='';\n"
+    "  let r;\n"
+    "  try{r=await jpost('/api/glm/discover',{jwt:j});}catch(e){glmMsg('请求失败',1);return}\n"
+    "  if(r.error){glmMsg(esc(r.error),1);return}\n"
+    "  glmOrgs=r.items||[];\n"
+    "  if(!glmOrgs.length){glmMsg('未发现组织',1);return}\n"
+    "  let oh='<select id=\"orgpick\" onchange=\"glmOrgPicked()\">';\n"
+    "  glmOrgs.forEach((o,i)=>{oh+='<option value='+i+'>'+esc(o.orgName||o.orgId)+'</option>'});\n"
+    "  $('orgsel').innerHTML=oh+'</select>';glmOrgPicked();\n"
     "}\n"
-    "try{(async()=>{const s=await jget('/api/status');if(!$('key').value&&s.key)$('key').value=s.key;if(!$('org').value&&s.org)$('org').value=s.org;if(!$('project').value&&s.project)$('project').value=s.project;})()}catch(e){}\n"
+    "function glmOrgPicked(){\n"
+    "  const o=glmOrgs[$('orgpick').value]||{projects:[]};\n"
+    "  let ph='<select id=\"projpick\" onchange=\"glmProjPicked()\">';\n"
+    "  (o.projects||[]).forEach((pj,i)=>{ph+='<option value='+i+'>'+esc(pj.name||pj.id)+'</option>'});\n"
+    "  $('projsel').innerHTML=ph+'</select>';glmProjPicked();\n"
+    "}\n"
+    "function glmProjPicked(){\n"
+    "  const o=glmOrgs[$('orgpick').value];const pj=(o.projects||[])[$('projpick').value];\n"
+    "  if(!o||!pj)return;\n"
+    "  $('org').value=o.orgId;$('project').value=pj.id;\n"
+    "  glmMsg('已选择 '+esc(o.orgName)+' / '+esc(pj.name)+',填好 API Key 后点保存',0);\n"
+    "}\n"
+    "function glmMsg(s,isErr){\n"
+    "  const e=$('glmmsg');if(!e)return;\n"
+    "  e.innerHTML='<small class='+(isErr?'err':'ok')+'>'+s+'</small>';\n"
+    "}\n"
+    "async function glmSave(){\n"
+    "  const r=await jpost('/api/glm',{key:$('key').value.trim(),org:$('org').value.trim(),project:$('project').value.trim()});\n"
+    "  if(r.ok)glmMsg('已保存,设备数秒内开始查询',0);else glmMsg('保存失败',1);\n"
+    "}\n"
+    "(async()=>{try{const s=await jget('/api/status');\n"
+    "  if(!$('key').value&&s.key)$('key').value=s.key;\n"
+    "  if(!$('org').value&&s.org)$('org').value=s.org;\n"
+    "  if(!$('project').value&&s.project)$('project').value=s.project;}catch(e){}})();\n"
     "</script>\n";
 }
 
-// 门户 HTTP 就绪后注册应用端点:POST /api/glm(保存 Key/组织/项目)。
-static esp_err_t glm_glm_save_handler(httpd_req_t *req);
+// 门户 HTTP 就绪后注册应用端点(一律 /api/glm 前缀,不占用框架命名空间)。
+static esp_err_t glm_save_handler(httpd_req_t *req);
+static esp_err_t glm_discover_handler(httpd_req_t *req);
 
 bool glm_pages_portal_register(void *httpd)
 {
     httpd_handle_t h = (httpd_handle_t)httpd;
-    static const httpd_uri_t uri = {
-        .uri = "/api/glm", .method = HTTP_POST, .handler = glm_glm_save_handler,
+    static const httpd_uri_t save_uri = {
+        .uri = "/api/glm", .method = HTTP_POST, .handler = glm_save_handler,
     };
-    return httpd_register_uri_handler(h, &uri) == ESP_OK;
+    static const httpd_uri_t discover_uri = {
+        .uri = "/api/glm/discover", .method = HTTP_POST, .handler = glm_discover_handler,
+    };
+    if (httpd_register_uri_handler(h, &save_uri) != ESP_OK) return false;
+    return httpd_register_uri_handler(h, &discover_uri) == ESP_OK;
 }
 
-// POST /api/glm 处理器(读 JSON,写应用配置,立即触发查询)。
-static esp_err_t glm_glm_save_handler(httpd_req_t *req)
+// POST /api/glm:保存 API Key / 组织 / 项目,立即触发一次查询。
+// key 传空串表示"不改动"(仅改团队上下文),非空才覆盖。
+static void glm_cfg_apply_parsed(cJSON *root)
 {
-    cJSON *root = (cJSON *)appfw_prov_read_json(req);
-    if (!root) return ESP_FAIL;
     cJSON *key = cJSON_GetObjectItemCaseSensitive(root, "key");
     cJSON *org = cJSON_GetObjectItemCaseSensitive(root, "org");
     cJSON *proj = cJSON_GetObjectItemCaseSensitive(root, "project");
-    if (cJSON_IsString(key) && key->valuestring[0]) glm_cfg_set_key(key->valuestring);
+    if (cJSON_IsString(key) && key->valuestring && key->valuestring[0])
+        glm_cfg_set_key(key->valuestring);
     glm_cfg_set_org(cJSON_IsString(org) && org->valuestring ? org->valuestring : "");
     glm_cfg_set_project(cJSON_IsString(proj) && proj->valuestring ? proj->valuestring : "");
+}
+
+static esp_err_t glm_save_handler(httpd_req_t *req)
+{
+    cJSON *root = (cJSON *)appfw_prov_read_json(req);
+    if (!root) return ESP_FAIL;
+    glm_cfg_apply_parsed(root);
     cJSON_Delete(root);
     appfw_client_refresh_now();
     appfw_prov_send_ok(req, true);
+    return ESP_OK;
+}
+
+// POST /api/glm/discover:用一次性网页登录 Token 发现组织/项目。
+//
+// ⚠ 后端未实现:该功能在门户里曾是死代码——JS 调 /api/discover,但全仓库没有任何
+//   处理器,引用的 #jwt/#orgsel/#projsel 三个 DOM 节点也不存在(它们随应用卡片
+//   一起搬到了本文件,现在才齐)。原计划的接口是
+//   GET https://bigmodel.cn/api/biz/customer/getCustomerInfo,鉴权用网页登录 Token。
+//   在真正实现前,这里显式返回可读错误,而不是让页面拿到一个无解释的 404。
+static esp_err_t glm_discover_handler(httpd_req_t *req)
+{
+    cJSON *root = (cJSON *)appfw_prov_read_json(req);
+    if (!root) return ESP_FAIL;
+    cJSON_Delete(root);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req,
+        "{\"error\":\"组织/项目发现尚未实现,请直接在下方手填组织与项目 ID\"}");
     return ESP_OK;
 }

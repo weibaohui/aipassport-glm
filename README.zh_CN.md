@@ -6,7 +6,7 @@
 
 面向 [FoloToy AI Passport](https://github.com/FoloToy/ai-passport) 掌机(ESP32-C3,2.4″ ST7789 240×320,三键)的固件:把你的 **GLM Coding Plan 套餐用量**显示在设备屏幕上,并自动定时刷新。
 
-基于上游 `ai-passport` BSP 的二次开发应用。上游基线保留在 git 历史中,概览见 [docs/README.zh_CN.md](docs/README.zh_CN.md)。
+基于上游 `ai-passport` BSP 的二次开发应用。上游基线保留在 git 历史中,概览见 [docs/README.zh_CN.md](components/framework/docs/README.zh_CN.md)。
 
 ## 功能
 

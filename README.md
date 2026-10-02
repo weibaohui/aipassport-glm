@@ -6,7 +6,7 @@
 
 A firmware for the [FoloToy AI Passport](https://github.com/FoloToy/ai-passport) handheld (ESP32-C3, 2.4" ST7789 240×320, 3 keys) that shows your **GLM Coding Plan quota** on the device screen and refreshes it automatically.
 
-Built as a second-development application on the upstream `ai-passport` BSP. The upstream baseline is preserved in the git history and documented in [docs/README.zh_CN.md](docs/README.zh_CN.md).
+Built as a second-development application on the upstream `ai-passport` BSP. The upstream baseline is preserved in the git history and documented in [docs/README.zh_CN.md](components/framework/docs/README.zh_CN.md).
 
 ## Features
 

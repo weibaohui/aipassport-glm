@@ -21,7 +21,7 @@ CHARSET = ROOT / "assets" / "fonts" / "glm_charset.txt"
 SOURCES = [
     "main/main.c",
     "main/glm_pages.c",
-    "components/appfw/src/appfw_ui.c",
+    ROOT / "components" / "framework" / "appfw" / "src" / "appfw_ui.c",
 ]
 
 # 需要覆盖的字符范围:CJK 统一表意文字 + 常用全角标点/符号。
@@ -59,7 +59,9 @@ def main() -> int:
     problems: list[str] = []
     total = set()
     for rel in SOURCES:
-        used = string_literal_chars(ROOT / rel)
+        # SOURCES 里的绝对路径项(框架 submodule 里的 appfw_ui.c)保持原样。
+        path = rel if isinstance(rel, Path) else ROOT / rel
+        used = string_literal_chars(path)
         total |= used
         for ch in sorted(used - charset):
             problems.append(f"{rel}: U+{ord(ch):04X} {ch!r} 不在字体子集中")

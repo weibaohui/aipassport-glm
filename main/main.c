@@ -96,7 +96,7 @@ void app_main(void)
         .home_up = glm_pages_home_up,
         .info_rows = glm_pages_info_rows,
         .app_config_html = glm_pages_app_config_html,
-        
+        .app_config_apply = glm_pages_app_config_save,
         .app_config_fill = glm_pages_app_config_fill,
         .config_rows = glm_pages_config_rows,
     };
@@ -122,6 +122,8 @@ void app_main(void)
     // 门户(常驻)+ 应用端点注册 + 秒级维护定时器。
     const appfw_prov_cfg_t pcfg = {
         .app_config_html = glm_pages_app_config_html,
+        .app_config_apply = glm_pages_app_config_save,
+        .app_config_fill = glm_pages_app_config_fill,
         .on_httpd_ready = portal_ready,
     };
     appfw_prov_configure(&pcfg);
