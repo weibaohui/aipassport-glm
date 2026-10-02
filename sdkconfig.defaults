@@ -44,3 +44,7 @@ CONFIG_LWIP_SNTP_MAX_SERVERS=2
 # 本应用(GLM 用量宝)不使用 BLE,关闭以节省约 25KB 内部 RAM 给 WiFi+TLS。
 # 若要编译参考 demo_ble.c,请恢复以下 NimBLE 配置(见基线 git 历史)。
 # CONFIG_BT_ENABLED is not set
+
+# --- 文件管理(files 分区 FATFS)---
+CONFIG_FATFS_LFN_HEAP=y
+CONFIG_FATFS_MAX_LFN=64

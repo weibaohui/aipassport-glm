@@ -4,6 +4,7 @@
 // 全部通用能力(WiFi 引擎/配网门户/存储/客户端/UI 骨架/熄屏/按键)来自
 // components/appfw。
 #include "appfw_client.h"
+#include "appfw_files.h"
 #include "appfw_net.h"
 #include "appfw_netlist.h"
 #include "appfw_portal.h"
@@ -74,6 +75,12 @@ void app_main(void)
     }
     bsp_display_backlight(100);
 
+    if (appfw_files_init() != ESP_OK) {
+        ESP_LOGE(TAG, "文件分区挂载失败(文件管理不可用)");
+    }
+    if (appfw_portal_restore_config("/files/config.json")) {
+        ESP_LOGI(TAG, "配置已从文件分区恢复");
+    }
     if (appfw_store_init() != ESP_OK) {
         ESP_LOGE(TAG, "NVS 初始化失败(配置将无法保存)");
     }
