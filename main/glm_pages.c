@@ -215,17 +215,10 @@ void glm_pages_home_up(void)
     appfw_client_refresh_now(); // 用量页上键=手动刷新
 }
 
-// ---- 信息页数据行 ----
+// ---- 信息页数据行(设备行为状态;API Key/团队上下文由 config_rows 提供,勿重复) ----
 int glm_pages_info_rows(char (*keys)[16], char (*vals)[72], int max)
 {
-    char key[GLM_KEY_MAX];
-    appfw_net_status_t st;
-    appfw_net_get_status(&st);
     int n = 0;
-    if (n < max) { snprintf(keys[n], 16, "API Key"); snprintf(vals[n], 72,
-        glm_cfg_get_key(key, GLM_KEY_MAX) ? "已配置" : "未设置"); n++; }
-    if (n < max) { snprintf(keys[n], 16, "团队");
-        snprintf(vals[n], 72, "已配置"); n++; }
     if (n < max) { snprintf(keys[n], 16, "刷新周期");
         uint16_t p = 60; appfw_store_get_period(&p);
         snprintf(vals[n], 72, "%u 分钟", (unsigned)(p / 60)); n++; }
