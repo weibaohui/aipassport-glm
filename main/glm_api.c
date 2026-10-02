@@ -108,17 +108,17 @@ static void on_result(appfw_client_err_t ferr, int status, int transport_err,
         }
     }
     // 团队模式成功:追加重置次数(独立端点;服务端偶发拒绝无 cookie 请求,
-    // 实测踩坑 → 最多重试 2 次;失败沿用最近一次成功值,不清零)。
+    // 实测踩坑 → 最多尝试 4 次;失败沿用最近一次成功值,不清零)。
     if (ferr == APPFW_CLIENT_OK) {
         char key[GLM_KEY_MAX], org[GLM_ORG_MAX], proj[GLM_PROJ_MAX];
         if (glm_cfg_get_key(key, sizeof(key)) &&
             team_ctx(org, sizeof(org), proj, sizeof(proj))) {
             // 服务端多节点对 org/proj 头的支持不一致(间歇出现"必须传组织ID"),
-            // 实测踩坑:轮换两个域名 + 重试;成功前沿用最近一次成功值。
-            static const char *RESET_URLS[] = {
-                "https://open.bigmodel.cn/api/biz/customer-package-reset/list?targetType=TEAM",
-                "https://open.bigmodel.cn/api/biz/customer-package-reset/list?targetType=TEAM",
-            };
+            // 实测踩坑 → 重试;成功前沿用最近一次成功值。
+            //
+            // ⚠ 这里曾写"轮换两个域名",但两个数组元素是同一个字符串,轮换从未真正
+            //   发生,4 次尝试打的都是同一台服务器。要恢复轮换需要填入真实的备用
+            //   主机名;在拿到之前不做臆测,单一主机 + 重试是当前能保证正确的行为。
             static int s_5h = -1, s_week = -1; // 最近一次成功值(仅本任务访问)
             int h5 = -1, week = -1;
             bool got = false;
@@ -131,7 +131,7 @@ static void on_result(appfw_client_err_t ferr, int status, int transport_err,
                 int status = 0;
                 char rbody[2048];
                 size_t rlen = 0;
-                if (appfw_client_fetch_once(RESET_URLS[attempt % 2], key, names, vals, 2,
+                if (appfw_client_fetch_once(RESETS_URL, key, names, vals, 2,
                                             &status, rbody, sizeof(rbody), &rlen) == ESP_OK &&
                     status == 200 &&
                     glm_resets_parse(rbody, rlen, &h5, &week) && h5 >= 0 && week >= 0) {
@@ -145,7 +145,7 @@ static void on_result(appfw_client_err_t ferr, int status, int transport_err,
                 u.five_hour_resets_left = h5;
                 u.week_resets_left = week;
             } else {
-                ESP_LOGW(TAG, "重置次数拉取失败(双域名 4 次),沿用上次值");
+                ESP_LOGW(TAG, "重置次数拉取失败(4 次重试),沿用上次值");
                 u.five_hour_resets_left = s_5h;
                 u.week_resets_left = s_week;
             }
