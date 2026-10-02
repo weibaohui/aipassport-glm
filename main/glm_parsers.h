@@ -1,4 +1,4 @@
-// main/app_glm_usage.h —— 智谱 GLM Coding Plan 用量数据的纯逻辑层。
+// main/glm_parsers.h —— 智谱 GLM Coding Plan 用量数据的纯逻辑层。
 //
 // 对应接口(实测存在,官方文档未完全公开,字段以实际返回为准):
 //   GET https://open.bigmodel.cn/api/monitor/usage/quota/limit

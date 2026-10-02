@@ -1,8 +1,8 @@
-// main/app_glm_usage.c —— 见 app_glm_usage.h 顶部说明。
+// main/glm_parsers.c —— 见 glm_parsers.h 顶部说明。
 //
 // 实现说明:JSON 解析用 cJSON(IDF 侧链接 json 组件;主机测试直接编译
 // tests/thirdparty/cJSON/cJSON.c,两端同一份应用源码,保证测试对象与固件一致)。
-#include "app_glm_usage.h"
+#include "glm_parsers.h"
 
 #include "cJSON.h"
 #include <stdio.h>
