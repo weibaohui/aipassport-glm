@@ -66,9 +66,6 @@ static void second_tick_cb(void *arg)
 void app_main(void)
 {
     ESP_LOGI(TAG, "GLM 用量宝(appfw)启动");
-
-             (unsigned)esp_get_free_heap_size(),
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     bsp_i2c_init();
     (void)bsp_battery_init(); // 失败不阻塞:电量显示降级为 --
 
@@ -77,9 +74,6 @@ void app_main(void)
         return;
     }
     bsp_display_backlight(100);
-
-             (unsigned)esp_get_free_heap_size(),
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     if (appfw_files_init() != ESP_OK) {
         ESP_LOGE(TAG, "文件分区挂载失败(文件管理不可用)");
     }
@@ -89,14 +83,9 @@ void app_main(void)
 
     appfw_netlist_t list;
     if (!appfw_store_netlist_load(&list)) appfw_netlist_reset(&list);
-             (unsigned)esp_get_free_heap_size(),
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     int net_err = appfw_net_init(&list, false); // 配网统一从菜单进,不再自动开门户
     // 热点名想定制?一行覆盖(框架默认 "AI-WiFi-"+MAC 尾缀,如 AI-WiFi-D22C):
     // appfw_net_set_ap_ssid("我的热点名");
-
-             (unsigned)esp_get_free_heap_size(),
-             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     int glm_err = glm_api_start(); // 内部构造 appfw_client 配置并启动
 
     // UI:注入业务页面与信息行。

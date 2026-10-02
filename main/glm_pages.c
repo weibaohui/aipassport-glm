@@ -152,15 +152,14 @@ void glm_pages_home_poll(void)
     else lv_label_set_text_fmt(s_h5_pct, "%d%%", u.tokens_5h_used_pct);
     set_reset_line(s_h5_reset, u.tokens_5h_reset_ms);
 
-    if (u.mcp_total > 0) {
-        lv_label_set_text(s_mcp_label, "MCP 调用(每月)");
-        lv_label_set_text_fmt(s_mcp_val, "%d/%d", u.mcp_used, u.mcp_total);
-    } else if (u.week_resets_left >= 0 && u.five_hour_resets_left >= 0) {
+    // 行 3:仅显示剩余重置次数(团队套餐);MCP 用量不再展示(用户要求,
+    // 解析仍保留)。未获取到时整行留空。
+    if (u.week_resets_left >= 0 && u.five_hour_resets_left >= 0) {
         lv_label_set_text(s_mcp_label, "剩余重置");
         lv_label_set_text_fmt(s_mcp_val, "周%d 5h%d", u.week_resets_left, u.five_hour_resets_left);
     } else {
-        lv_label_set_text(s_mcp_label, "MCP 调用(每月)");
-        lv_label_set_text(s_mcp_val, "--");
+        lv_label_set_text(s_mcp_label, "");
+        lv_label_set_text(s_mcp_val, "");
     }
 
     // foot:错误优先;断网其次;正常=套餐+倒计时。
